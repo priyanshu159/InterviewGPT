@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #2b2013;
+  background: #fdf8f0;
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+
+  --ink: #2b2013;
+  --muted: #8a7a63;
+  --line: #f0e4cf;
+  --paper: rgba(255, 255, 255, 0.78);
+  --white: #ffffff;
+  --blue: #ea580c;
+  --cyan: #d946ef;
+  --violet: #0d9488;
+  --pink: #f4b183;
+  --mint: #5eead4;
+}
+
+* { box-sizing: border-box; }
+
+html { min-height: 100%; background: #fdf8f0; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(13,148,136,.12), transparent 26%),
+    radial-gradient(circle at 90% 15%, rgba(245,158,11,.14), transparent 25%),
+    linear-gradient(135deg, #fffaf1 0%, #fdf5e8 52%, #fff8ef 100%);
+  color: var(--ink);
+}
+
+#root { min-height: 100vh; width: 100%; }
+
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+
+input, textarea, select { color: var(--ink); }
+input::placeholder, textarea::placeholder { color: #ab9a80; opacity: 1; }
+
+::selection { background: #fbdba0; color: #2b2013; }
+
+.app-shell {
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(234,88,12,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(234,88,12,.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+.ambient {
+  position: fixed;
+  border-radius: 9999px;
+  pointer-events: none;
+  filter: blur(8px);
+  opacity: .65;
+}
+
+.ambient-one {
+  width: 340px;
+  height: 340px;
+  top: 80px;
+  right: 2%;
+  background: rgba(13,148,136,.13);
+}
+
+.ambient-two {
+  width: 270px;
+  height: 270px;
+  bottom: 4%;
+  left: 16%;
+  background: rgba(245,158,11,.12);
+}
+
+.ambient-three {
+  width: 210px;
+  height: 210px;
+  top: 45%;
+  left: 38%;
+  background: rgba(217,70,239,.09);
+}
+
+.glass {
+  background: rgba(255,255,255,.68);
+  border: 1px solid rgba(255,255,255,.92);
+  box-shadow:
+    0 28px 80px rgba(120, 84, 40, .10),
+    0 4px 18px rgba(120, 84, 40, .06);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.card {
+  background: rgba(255,255,255,.88);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 48px rgba(120,84,40,.08);
+}
+
+.lift {
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+
+.lift:hover {
+  transform: translateY(-4px);
+  border-color: #f2d9ae;
+  box-shadow: 0 26px 65px rgba(234,88,12,.14);
+}
+
+.side-rail {
+  background: rgba(255,255,255,.74);
+  border: 1px solid rgba(255,255,255,.95);
+  box-shadow: 0 24px 70px rgba(125,90,40,.12);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.scroll-soft::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-soft::-webkit-scrollbar-track { background: transparent; }
+.scroll-soft::-webkit-scrollbar-thumb { background: #e9d7b8; border-radius: 999px; }
+
+.spatial-input {
+  width: 100%;
+  border: 1px solid #ecdfc4;
+  background: rgba(255,255,255,.92);
+  border-radius: 18px;
+  padding: 13px 15px;
+  outline: none;
+  transition: .2s ease;
+}
+
+.spatial-input:focus {
+  border-color: #f3b877;
+  box-shadow: 0 0 0 4px rgba(234,88,12,.12);
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #ea580c, #d946ef);
+  color: white;
+  border-radius: 18px;
+  font-weight: 800;
+  box-shadow: 0 14px 30px rgba(234,88,12,.26);
+  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(217,70,239,.30);
+  filter: brightness(1.03);
+}
+
+.primary-btn:disabled { opacity: .55; }
+
+.soft-btn {
+  background: white;
+  border: 1px solid #ede1c8;
+  color: #7a6a4f;
+  border-radius: 16px;
+  font-weight: 700;
+  transition: .2s ease;
+}
+
+.soft-btn:hover {
+  border-color: #ecc888;
+  color: #9a3412;
+  box-shadow: 0 10px 24px rgba(120,84,40,.10);
+}
+
+@media (max-width: 767px) {
+  .ambient-one { width: 190px; height: 190px; right: -60px; }
+  .ambient-two { width: 150px; height: 150px; left: -50px; }
+}

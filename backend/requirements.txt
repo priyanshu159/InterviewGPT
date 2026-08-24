@@ -1,0 +1,13 @@
+fastapi 
+uvicorn 
+python-multipart 
+pdfplumber 
+pymupdf
+google-generativeai
+python-dotenv
+groq
+langchain
+langchain-community
+faiss-cpu
+sentence-transformers
+ollama
