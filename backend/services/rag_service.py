@@ -1,40 +1,77 @@
-from sentence_transformers import SentenceTransformer
+import os
+import pickle
+import requests
 import faiss
 import numpy as np
-import pickle
-import os
+from dotenv import load_dotenv
 
 
 # ==========================================================
-# Embedding Model
+# ENVIRONMENT VARIABLES
 # ==========================================================
 
-embedding_model = None
+load_dotenv()
 
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 
-def get_embedding_model():
-
-    global embedding_model
-
-    if embedding_model is None:
-
-        print("=" * 60)
-        print("Loading Sentence Transformer Model...")
-        print("=" * 60)
-
-        embedding_model = SentenceTransformer(
-            "sentence-transformers/all-MiniLM-L6-v2"
-        )
-
-        print("=" * 60)
-        print("Embedding Model Loaded Successfully")
-        print("=" * 60)
-
-    return embedding_model
+if not NVIDIA_API_KEY:
+    raise RuntimeError(
+        "NVIDIA_API_KEY is not set in the environment variables."
+    )
 
 
 # ==========================================================
-# Vector Store Paths
+# NVIDIA EMBEDDING API
+# ==========================================================
+
+NVIDIA_EMBEDDING_URL = (
+    "https://integrate.api.nvidia.com/v1/embeddings"
+)
+
+EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"
+
+
+def get_embeddings(texts, input_type="passage"):
+
+    if not texts:
+        return np.array([], dtype="float32")
+
+    headers = {
+        "Authorization": f"Bearer {NVIDIA_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "input": texts,
+        "model": EMBEDDING_MODEL,
+        "input_type": input_type,
+        "encoding_format": "float"
+    }
+
+    response = requests.post(
+        NVIDIA_EMBEDDING_URL,
+        headers=headers,
+        json=payload,
+        timeout=120
+    )
+
+    response.raise_for_status()
+
+    data = response.json()
+
+    embeddings = [
+        item["embedding"]
+        for item in data["data"]
+    ]
+
+    return np.array(
+        embeddings,
+        dtype="float32"
+    )
+
+
+# ==========================================================
+# VECTOR STORE PATHS
 # ==========================================================
 
 INDEX_PATH = "vectorstore/resume_jd.index"
@@ -42,7 +79,7 @@ CHUNK_PATH = "vectorstore/chunks.pkl"
 
 
 # ==========================================================
-# Split Resume/JD into Overlapping Chunks
+# SPLIT RESUME / JD INTO OVERLAPPING CHUNKS
 # ==========================================================
 
 def split_text(
@@ -51,7 +88,13 @@ def split_text(
     overlap=200
 ):
 
-    text = text.replace("\r", "").strip()
+    if not text:
+        return []
+
+    text = text.replace(
+        "\r",
+        ""
+    ).strip()
 
     chunks = []
 
@@ -68,50 +111,85 @@ def split_text(
 
         start += chunk_size - overlap
 
-    print(f"\nTotal Chunks Created : {len(chunks)}")
+    print(
+        f"\nTotal Chunks Created : {len(chunks)}"
+    )
 
     return chunks
 
 
 # ==========================================================
-# Create Vector Store
+# CREATE VECTOR STORE
 # ==========================================================
 
 def create_vector_store(text):
 
     if not text or not text.strip():
-        raise ValueError("Resume/JD text is empty.")
 
-    chunks = split_text(text)
+        raise ValueError(
+            "Resume/JD text is empty."
+        )
+
+    chunks = split_text(
+        text
+    )
 
     if not chunks:
-        raise ValueError("No text chunks were created.")
 
-    # Load embedding model only when required
-    model = get_embedding_model()
+        raise ValueError(
+            "No text chunks were created."
+        )
 
-    embeddings = model.encode(
+    print("=" * 60)
+    print("Generating NVIDIA Embeddings...")
+    print("=" * 60)
+
+    embeddings = get_embeddings(
         chunks,
-        normalize_embeddings=True
+        input_type="passage"
     )
+
+    if embeddings.size == 0:
+
+        raise ValueError(
+            "No embeddings were generated."
+        )
 
     dimension = embeddings.shape[1]
 
-    index = faiss.IndexFlatIP(dimension)
+    # ------------------------------------------------------
+    # FAISS INNER PRODUCT INDEX
+    # ------------------------------------------------------
+
+    index = faiss.IndexFlatIP(
+        dimension
+    )
 
     index.add(
-        np.array(embeddings).astype("float32")
+        embeddings
     )
+
+    # ------------------------------------------------------
+    # CREATE VECTORSTORE DIRECTORY
+    # ------------------------------------------------------
 
     os.makedirs(
         "vectorstore",
         exist_ok=True
     )
 
+    # ------------------------------------------------------
+    # SAVE FAISS INDEX
+    # ------------------------------------------------------
+
     faiss.write_index(
         index,
         INDEX_PATH
     )
+
+    # ------------------------------------------------------
+    # SAVE CHUNKS
+    # ------------------------------------------------------
 
     with open(
         CHUNK_PATH,
@@ -125,15 +203,15 @@ def create_vector_store(text):
 
     print("=" * 60)
     print("VECTOR STORE CREATED")
-    print(f"Chunks : {len(chunks)}")
-    print(f"Dimension : {dimension}")
+    print(f"Chunks     : {len(chunks)}")
+    print(f"Dimension  : {dimension}")
     print("=" * 60)
 
     return len(chunks)
 
 
 # ==========================================================
-# Search Vector Store
+# SEARCH VECTOR STORE
 # ==========================================================
 
 def search_vector_store(
@@ -142,34 +220,62 @@ def search_vector_store(
 ):
 
     if not query or not query.strip():
-        print("Search query is empty.")
-        return []
 
-    if not os.path.exists(INDEX_PATH):
-
-        print("Vector index not found.")
+        print(
+            "Search query is empty."
+        )
 
         return []
 
-    if not os.path.exists(CHUNK_PATH):
+    # ------------------------------------------------------
+    # CHECK VECTOR INDEX
+    # ------------------------------------------------------
 
-        print("Chunk file not found.")
+    if not os.path.exists(
+        INDEX_PATH
+    ):
+
+        print(
+            "Vector index not found."
+        )
 
         return []
 
-    # Load embedding model only when required
-    model = get_embedding_model()
+    # ------------------------------------------------------
+    # CHECK CHUNK FILE
+    # ------------------------------------------------------
 
-    query_embedding = model.encode(
+    if not os.path.exists(
+        CHUNK_PATH
+    ):
+
+        print(
+            "Chunk file not found."
+        )
+
+        return []
+
+    print("=" * 60)
+    print("Generating Query Embedding...")
+    print("=" * 60)
+
+    query_embedding = get_embeddings(
         [query],
-        normalize_embeddings=True
+        input_type="query"
     )
+
+    # ------------------------------------------------------
+    # LOAD FAISS INDEX
+    # ------------------------------------------------------
 
     index = faiss.read_index(
         INDEX_PATH
     )
 
-    # Do not request more results than available
+    # ------------------------------------------------------
+    # LIMIT K TO AVAILABLE DOCUMENTS
+    # ------------------------------------------------------
+
     k = min(
         k,
         index.ntotal
@@ -177,21 +283,33 @@ def search_vector_store(
 
     if k <= 0:
 
-        print("Vector index is empty.")
+        print(
+            "Vector index is empty."
+        )
 
         return []
 
+    # ------------------------------------------------------
+    # SEARCH
+    # ------------------------------------------------------
+
     scores, indices = index.search(
-        np.array(query_embedding).astype("float32"),
+        query_embedding,
         k
     )
+
+    # ------------------------------------------------------
+    # LOAD CHUNKS
+    # ------------------------------------------------------
 
     with open(
         CHUNK_PATH,
         "rb"
     ) as f:
 
-        chunks = pickle.load(f)
+        chunks = pickle.load(
+            f
+        )
 
     results = []
 
@@ -201,6 +319,10 @@ def search_vector_store(
     print("=" * 70)
     print("RETRIEVED CHUNKS")
     print("=" * 70)
+
+    # ------------------------------------------------------
+    # COLLECT RESULTS
+    # ------------------------------------------------------
 
     for score, idx in zip(
         scores[0],
@@ -218,20 +340,32 @@ def search_vector_store(
         if chunk in visited:
             continue
 
-        visited.add(chunk)
+        visited.add(
+            chunk
+        )
 
         print(
             f"\nScore : {score:.4f}"
         )
 
-        print("-" * 70)
+        print(
+            "-" * 70
+        )
 
-        print(chunk)
+        print(
+            chunk
+        )
 
-        print("-" * 70)
+        print(
+            "-" * 70
+        )
 
-        results.append(chunk)
+        results.append(
+            chunk
+        )
 
-    print("=" * 70)
+    print(
+        "=" * 70
+    )
 
     return results
